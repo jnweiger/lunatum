@@ -1,0 +1,111 @@
+#! /usr/bin/python3
+#
+# (C) 2018 Jürgen Weigert <jw@owncloud.com)
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+# MA 02110-1301, USA.
+#
+# Ideas taken from and moddeled after kazam: 
+#       Copyright 2012 David Klasinc <bigwhale@lubica.net>
+#       Copyright 2010 Andrew <andrew@karmic-desktop>
+# Thanks for a great piece of software!
+#
+# 2018-06-26, v0.01 - jw, initial draught.
+
+import os
+import sys
+import dbus
+import logging
+import dbus.service
+from argparse import ArgumentParser
+from dbus.mainloop.glib import DBusGMainLoop
+
+from gi.repository import Gtk
+
+__version__ = '0.01'
+
+class LunatumService(dbus.service.Object):
+    def __init__(self, app):
+        self.app = app
+        bus_name = dbus.service.BusName('org.lunatum', bus=dbus.SessionBus())
+        dbus.service.Object.__init__(self, bus_name, "/org/lunatum")
+
+    @dbus.service.method('org.lunatum')
+    def instance(self):
+        self.app.window.show()
+        self.app.window.present()
+
+    @dbus.service.method('org.lunatum')
+    def prefs(self):
+        self.app.cb_preferences_request(None)
+
+if __name__ == "__main__":
+
+    logger =  logging.getLogger()
+    logger.name = "Lunatum"
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(levelname)s %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+    logger.debug("Logger intialized.")
+
+    datadir = os.path.dirname(os.path.abspath(sys.argv[0]))+'/../share/lunatum'
+    sys.path.append(datadir)
+
+    try:
+        import platform
+        dist = platform.linux_distribution()
+    except:
+        dist = ('Ubuntu', '16.04', 'trusty') # fallback
+        logger.warning("Failed to correctly detect operating system.")
+
+    parser = ArgumentParser(description = "Lunatum - Screen capture and GUI analysis tool.")
+
+    parser.add_argument("--debug",              action = "store_true",  help = "enable debug mode")
+    parser.add_argument("--silent",             action = "store_true",  help = "silent start, no UI shown")
+    parser.add_argument("-v", "--version",      action = "version",     version = "Lunatum v"+__version__)
+
+
+    args = parser.parse_args()
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
+    logger.debug("Starting ...")
+
+    DBusGMainLoop(set_as_default=True)
+    bus = dbus.SessionBus()
+    instance = bus.request_name("org.lunatum")
+
+    if instance != dbus.bus.REQUEST_NAME_REPLY_PRIMARY_OWNER:
+        logger.debug("Getting existing instance ...")
+        logger.debug("Showing main window ...")
+        app = dbus.SessionBus().get_object("org.lunatum", "/org/lunatum").get_dbus_method("instance")
+        app()
+        sys.exit(0)
+    else:
+        logger.debug("Starting new instance ...")
+        from lunatum.app import LunatumApp
+        app = LunatumApp(datadir, dist, args.debug, args.silent)
+
+        my_service = LunatumService(app)
+
+    Gtk.main()
+    logger.debug("Finishing ...")
+    sys.exit(0)
+
