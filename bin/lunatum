@@ -17,7 +17,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA 02110-1301, USA.
 #
-# Ideas taken from and moddeled after kazam: 
+# Ideas taken from and moddeled after kazam:
 #       Copyright 2012 David Klasinc <bigwhale@lubica.net>
 #       Copyright 2010 Andrew <andrew@karmic-desktop>
 # Thanks for a great piece of software!
@@ -32,6 +32,8 @@ import dbus.service
 from argparse import ArgumentParser
 from dbus.mainloop.glib import DBusGMainLoop
 
+from gi import require_version as gi_require_version
+gi_require_version('Gtk', '3.0')        # as suggested by a runtime PyGIWarning
 from gi.repository import Gtk
 
 __version__ = '0.01'
@@ -63,7 +65,7 @@ if __name__ == "__main__":
 
     logger.debug("Logger intialized.")
 
-    datadir = os.path.dirname(os.path.abspath(sys.argv[0]))+'/../share/lunatum'
+    datadir = os.path.dirname(os.path.abspath(sys.argv[0]))+'/../share' # /lunatum'
     sys.path.append(datadir)
 
     try:
